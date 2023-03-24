@@ -25,16 +25,16 @@ D=$(subst .cpp,.d,$(SOURCES))
 %.o: %.cpp
 	$(CXX) -MD -MP $(CXXFLAGS) -o $@ -c $<
 
-.PRECIOUS: tracer.exe
-tracer.exe: $(OBJS)
-	$(CXX) -MD -MP $(LDFLAGS) -o tracer $(OBJS) $(LDLIBS)
+.PRECIOUS: ptracer.exe
+ptracer.exe: $(OBJS)
+	$(CXX) -MD -MP $(LDFLAGS) $(CXXFLAGS) -o ptracer $(OBJS) $(LDLIBS)
 
 clean:
-	-@rm *.o *.d
+	-@rm *.o *.d ptracer.exe
 
-test: tracer.exe
+test: ptracer.exe
 	@echo "TESTING"
-	powershell -Command Copy-Item -Path tracer.exe -Destination t.exe
+	powershell -Command Copy-Item -Path ptracer.exe -Destination t.exe
 	make clean
 	./t.exe -c "make"
 

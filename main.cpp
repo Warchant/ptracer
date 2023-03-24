@@ -64,11 +64,11 @@ int main(int argc, const char**argv) {
   auto handler = std::make_unique<ProcessTracer>(cmd);
   try {
     handler->Run();
+    std::cout << "[TRACER] Success! Writing to json file: " << output << "\n";
   } catch (const std::exception &e) {
     std::cerr << ("EXCEPTION: \n") << e.what();
   }
 
-  std::cout << "[TRACER] Success! Writing to json file: " << output << "\n";
   handler->WriteToJSON(output);
 
   return 0;

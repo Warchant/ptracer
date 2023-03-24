@@ -24,56 +24,45 @@ SOFTWARE.
 
 #include "Process.h"
 
-Process::Process() {};
-Process::~Process() {};
-
-Process::Process(const int& _pid, const int& _ppid, const std::string& _command, const std::string& _directory)
-	: pid(_pid), ppid(_ppid), command(_command), directory(_directory), children(0){}
+Process::Process(const int &_pid, const int &_ppid, const std::string &_command,
+                 const std::string &_directory)
+    : pid(_pid), ppid(_ppid), command(_command), directory(_directory),
+      children(0) {}
 
 /*
-* Add child to the tree
-*/
-void Process::InsertChild(Process& proc)
-{
-	this->children.push_back(proc);
-}
+ * Add child to the tree
+ */
+void Process::InsertChild(Process proc) { this->children.push_back(std::move(proc)); }
 /*
-* Traverse and find parent
-* insert new process as a child
-*/
-void Process::TraverseAndInsertChild(Process& p) 
-{
-	for (auto& c : this->children)
-	{
-		if (p.ppid == c.pid)
-		{
-				c.InsertChild(p);
-				break;
-		}else c.TraverseAndInsertChild(p);
-	}
-	
+ * Traverse and find parent
+ * insert new process as a child
+ */
+void Process::TraverseAndInsertChild(Process& p) {
+  for (auto &c : this->children) {
+    if (p.ppid == c.pid) {
+      c.InsertChild(std::move(p));
+      break;
+    } else
+      c.TraverseAndInsertChild(p);
+  }
 }
 
 /*
-* It accesses each Process objects parameters @command and @directory
-* and replaces backslash and recursively traverse Tree structure
-* and streams as json format
-*/
-std::string Process::GetJSON()
-{
-	std::replace(this->command.begin(), this->command.end(), '\"', '\'');
-	std::replace(this->directory.begin(), this->directory.end(), '\"', '\'');
-	std::stringstream ret_json;
-	ret_json << "{" << "\"directory\""<<":\"" << this->directory<< "\","
-		<< "\"Command\":" << "\""<< this->command << "\"," 	<< "\"Children\":[";
-	bool first = true;
-	for (auto child : this->children) 
-	{
-		if (first) { first = false;	}
-		else { ret_json << ",";}
-		ret_json << child.GetJSON();
-	}
-	ret_json << "]}";
-	return ret_json.str();
-}
+ * It accesses each Process objects parameters @command and @directory
+ * and replaces backslash and recursively traverse Tree structure
+ * and streams as json format
+ */
+nlohmann::json Process::GetJSON() const {
+  // std::replace(this->command.begin(), this->command.end(), '\"', '\'');
+  // std::replace(this->directory.begin(), this->directory.end(), '\"', '\'');
 
+  nlohmann::json val;
+  val["directory"] = this->directory;
+  val["command"] = this->command;
+  for (const auto& c : this->children) {
+    val["children"].push_back(c.GetJSON());
+  }
+
+  return val;
+
+}

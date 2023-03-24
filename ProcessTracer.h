@@ -6,10 +6,10 @@
 #endif // _M_X64
 
 #include <direct.h>
-#include<limits.h>
+#include <climits>
 
 #include <iostream>
-#include<vector>
+#include <vector>
 #include <string>
 #include <fstream>
 #include <map>
@@ -17,10 +17,9 @@
 #include <stdexcept>
 #include <windows.h>
 #include <tchar.h>
-#include <psapi.h> 
+#include <psapi.h>
 #include <tlhelp32.h>
 #include <stdint.h>
-#include <iomanip>
 #include <iomanip>
 #include <codecvt>
 #include <locale>
@@ -40,7 +39,7 @@ class ProcessTracer
 private:
 	HANDLE m_hProcess;
 	DWORD m_parent;
-	bool m_isVerbose = false;
+	bool m_isVerbose = true;
 	bool m_isEnabledInfo = false;
 	bool m_isExecuting = true;
 	bool m_IsInitRunning = false;
@@ -51,16 +50,12 @@ private:
 	std::vector<int> parent;
 	std::string process_id;
 	std::string parent_id;
-	std::string m_cmd;
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> strconverter;
-	Process m_init; // root process
-	nlohmann::json njson; // extern json lib
-	std::vector<std::string> batfile;
-	
+	Process root; // root process
+
 public:
-	
 	ProcessTracer();
-	~ProcessTracer();
+	~ProcessTracer() = default;
 	ProcessTracer(int argc, TCHAR **argv);
 	void Run(bool isDllEnabled);
 	void WriteToJSON();
@@ -74,13 +69,10 @@ public:
 	void SetParentPID(std::string s) { parent_id = s; }
 	void SetPID(std::string s) { process_id = s; }
 	std::string GetCommandLineArgs(HANDLE handle);
-	std::string CharToString();
+	std::string GetArgs();
 	std::string ToString(std::wstring wstr){ return strconverter.to_bytes(wstr);}
-	std::string GetCurrentDirectory();
+	std::string (GetCurrentDirectory)();
 	std::string GetParentPID() { return parent_id; }
 	std::string GetPID() { return process_id; }
-	std::ofstream myfile_nolib{ "compile_db_no_library.json" };
-	std::ofstream myfile_withlib{ "compile_db_via_library.json" };
-	std::ofstream bat{ "compile.bat" };
+	std::ofstream output_file{ "compile_db.json" };
 };
-

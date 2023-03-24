@@ -23,32 +23,23 @@ SOFTWARE.
 */
 
 #include "ProcessTracer.h"
+#include <memory>
 
+int _tmain(int argc, TCHAR **argv) {
 
-int _tmain(int argc, TCHAR **argv)
-{	
-	
-		if (argc <= 1)
-		{
-			std::cout <<"See options via -h or --help\n";
-			return false;
-		}
-		for (;;) 
-		{
-			try
-			{
-				ProcessTracer* handler = new ProcessTracer(argc, argv);
-				handler->Run(false); 
-			}
-			catch (std::exception& ex)
-			{
-				std::cerr << ("Unvalid Argument: \n") << ex.what(); "\n";
-				return 1;
-			}
-			exit(0);
-		}
-	return 0;
+  if (argc <= 1) {
+    std::cout << "See options via -h or --help\n";
+    return 1;
+  }
+
+  try {
+    std::unique_ptr<ProcessTracer> handler =
+        std::unique_ptr<ProcessTracer>(new ProcessTracer(argc, argv));
+    handler->Run(false);
+  } catch (const std::exception &e) {
+    std::cerr << ("EXCEPTION: \n") << e.what();
+    return 1;
+  }
+
+  return 0;
 }
-
-
-

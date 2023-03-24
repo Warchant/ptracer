@@ -23,11 +23,11 @@ SOFTWARE.
 */
 
 #pragma once
-#include<iostream>
-#include<vector>
+#include <iostream>
+#include <vector>
 #include <string>
 #include <sstream>
-#include"json.hpp"
+#include "json.hpp"
 
 class Process
 {
@@ -37,19 +37,14 @@ private:
 	int counter = 0;
 	std::string command;
 	std::string directory;
-	std::string indent{ " " };
 	std::vector<Process> children;
-	nlohmann::json njson;
 public:
-	Process();
-	~Process();
+	Process() = default;
+	~Process() = default;
 	Process(const int&, const int&,const std::string&, const std::string&);
-	void InsertChild(Process&);
+	void InsertChild(Process);
 	void TraverseAndInsertChild(Process&);
-	std::string GetJSON();
+	nlohmann::json GetJSON() const;
 	Process& GetLastChild() { return this->children.back(); }
 	std::vector<Process>& GetChildren() { return  this->children; }
-	std::string GetIndent() { return this->indent; }
-	nlohmann::json& GetNL() { return this->njson; }
-
 };

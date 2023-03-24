@@ -1,26 +1,42 @@
 CC=gcc
 CXX=g++
 
-LDLIBS=
+LDLIBS=-static -limagehlp
 CFLAGS=
-CPPFLAGS=
+CXXFLAGS=-std=c++17 -O3
 
-HEADERS=NtQueries.h \
+HEADERS=\
+	NtQueries.h \
 	json.hpp \
 	Process.h \
 	ProcessTracer.h \
 	resource.h \
 	SimpleSymbolEngine.h
 
-SOURCES=main.cpp \
+SOURCES=\
+	main.cpp \
 	Process.cpp \
 	ProcessTracer.cpp \
 	SimpleSymbolEngine.cpp
 
 OBJS=$(subst .cpp,.o,$(SOURCES))
+D=$(subst .cpp,.d,$(SOURCES))
 
-app: $(OBJS)
+# -include $(D)
+
+%.o: %.cpp
+	$(CXX) -MD -MP $(CXXFLAGS) -o $@ -c $<
+
+tracer.exe: $(OBJS)
 	$(CXX) $(LDFLAGS) -o tracer $(OBJS) $(LDLIBS)
 
+t.exe: tracer.exe
+	cp $< $@
+
 clean:
-	rm $(OBJS)
+	-@rm *.o *.d tracer.exe
+
+test: t.exe
+	@echo "TESTING"
+	make clean
+	t.exe "make"

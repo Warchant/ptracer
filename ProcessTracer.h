@@ -48,8 +48,8 @@ private:
 	SimpleSymbolEngine m_engine;
 	std::vector<int> pids;
 	std::vector<int> parent;
-	std::string process_id;
-	std::string parent_id;
+	DWORD process_pid;
+	DWORD parent_pid;
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> strconverter;
 	Process root; // root process
 
@@ -64,15 +64,11 @@ public:
 	void OnExitProcess(DWORD threadId, EXIT_PROCESS_DEBUG_INFO const & exitProcess, bool m_isVerbose);
 	void PTraceCreateProcess(int argc, TCHAR ** begin);
 	void OnException(DWORD threadId, DWORD firstChance, EXCEPTION_RECORD const& exception);
-	void GetProcessInformation(DWORD pid,std::string processAddress, bool m_isVerbose);
+	void GetProcessInformation(DWORD pid,std::string processAddress);
 	void ParseArgs(std::string str);
-	void SetParentPID(std::string s) { parent_id = s; }
-	void SetPID(std::string s) { process_id = s; }
 	std::string GetCommandLineArgs(HANDLE handle);
 	std::string GetArgs();
 	std::string ToString(std::wstring wstr){ return strconverter.to_bytes(wstr);}
 	std::string (GetCurrentDirectory)();
-	std::string GetParentPID() { return parent_id; }
-	std::string GetPID() { return process_id; }
 	std::ofstream output_file{ "compile_db.json" };
 };

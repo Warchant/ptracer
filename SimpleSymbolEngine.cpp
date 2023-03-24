@@ -224,29 +224,29 @@ void SimpleSymbolEngine::stackTrace(HANDLE hThread, std::ostream & os)
 }
 
 
-std::string SimpleSymbolEngine::getString(PVOID address, BOOL unicode, DWORD maxStringLength)
-{
-	if (unicode)
-	{
-		std::vector<wchar_t> chVector(maxStringLength + 1);
-		ReadPartialProcessMemory(hProcess, address, &chVector[0], sizeof(wchar_t), maxStringLength * sizeof(wchar_t));
+// std::string SimpleSymbolEngine::getString(PVOID address, BOOL unicode, DWORD maxStringLength)
+// {
+// 	if (unicode)
+// 	{
+// 		std::vector<wchar_t> chVector(maxStringLength + 1);
+// 		ReadPartialProcessMemory(hProcess, address, &chVector[0], sizeof(wchar_t), maxStringLength * sizeof(wchar_t));
 
-		size_t const wcLen = wcstombs(0, &chVector[0], 0);
-		if (wcLen == (size_t)-1)
-		{
-			return "invalid string";
-		}
-		else
-		{
-			std::vector<char> mbStr(wcLen + 1);
-			wcstombs(&mbStr[0], &chVector[0], wcLen);
-			return &mbStr[0];
-		}
-	}
-	else
-	{
-		std::vector<char> chVector(maxStringLength + 1);
-		ReadPartialProcessMemory(hProcess, address, &chVector[0], 1, maxStringLength);
-		return &chVector[0];
-	}
-}
+// 		size_t const wcLen = wcstombs(0, &chVector[0], 0);
+// 		if (wcLen == (size_t)-1)
+// 		{
+// 			return "invalid string";
+// 		}
+// 		else
+// 		{
+// 			std::vector<char> mbStr(wcLen + 1);
+// 			wcstombs(&mbStr[0], &chVector[0], wcLen);
+// 			return &mbStr[0];
+// 		}
+// 	}
+// 	else
+// 	{
+// 		std::vector<char> chVector(maxStringLength + 1);
+// 		ReadPartialProcessMemory(hProcess, address, &chVector[0], 1, maxStringLength);
+// 		return &chVector[0];
+// 	}
+// }

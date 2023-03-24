@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
 
-LDLIBS=-static -limagehlp
+LDLIBS=-static -limagehlp -static-libgcc -static-libstdc++
 CFLAGS=
 CXXFLAGS=-std=c++17 -O3
 
@@ -22,21 +22,20 @@ SOURCES=\
 OBJS=$(subst .cpp,.o,$(SOURCES))
 D=$(subst .cpp,.d,$(SOURCES))
 
-# -include $(D)
-
 %.o: %.cpp
 	$(CXX) -MD -MP $(CXXFLAGS) -o $@ -c $<
 
+.PRECIOUS: tracer.exe
 tracer.exe: $(OBJS)
-	$(CXX) $(LDFLAGS) -o tracer $(OBJS) $(LDLIBS)
-
-t.exe: tracer.exe
-	cp $< $@
+	$(CXX) -MD -MP $(LDFLAGS) -o tracer $(OBJS) $(LDLIBS)
 
 clean:
-	-@rm *.o *.d tracer.exe
+	-@rm *.o *.d
 
-test: t.exe
+test: tracer.exe
 	@echo "TESTING"
+	powershell -Command Copy-Item -Path tracer.exe -Destination t.exe
 	make clean
-	t.exe "make"
+	./t.exe "make"
+
+-include $(D)

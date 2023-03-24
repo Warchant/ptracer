@@ -24,6 +24,9 @@ SOFTWARE.
 
 #include "Process.h"
 
+#include <algorithm> // for std::replace
+#include <string> // for std::string
+
 Process::Process(const int &_pid, const int &_ppid, const std::string &_command,
                  const std::string &_directory)
     : pid(_pid), ppid(_ppid), command(_command), directory(_directory),
@@ -33,6 +36,7 @@ Process::Process(const int &_pid, const int &_ppid, const std::string &_command,
  * Add child to the tree
  */
 void Process::InsertChild(Process proc) { this->children.push_back(std::move(proc)); }
+
 /*
  * Traverse and find parent
  * insert new process as a child
@@ -41,9 +45,10 @@ void Process::TraverseAndInsertChild(Process& p) {
   for (auto &c : this->children) {
     if (p.ppid == c.pid) {
       c.InsertChild(std::move(p));
-      break;
-    } else
-      c.TraverseAndInsertChild(p);
+      return;
+    }
+
+    c.TraverseAndInsertChild(p);
   }
 }
 
@@ -52,14 +57,14 @@ void Process::TraverseAndInsertChild(Process& p) {
  * and replaces backslash and recursively traverse Tree structure
  * and streams as json format
  */
-nlohmann::json Process::GetJSON() const {
-  // std::replace(this->command.begin(), this->command.end(), '\"', '\'');
-  // std::replace(this->directory.begin(), this->directory.end(), '\"', '\'');
+nlohmann::json Process::GetJSON() {
+  std::replace(this->directory.begin(), this->directory.end(), '\\', '/');
+  std::replace(this->command.begin(), this->command.end(), '\\', '/');
 
   nlohmann::json val;
   val["directory"] = this->directory;
   val["command"] = this->command;
-  for (const auto& c : this->children) {
+  for (auto& c : this->children) {
     val["children"].push_back(c.GetJSON());
   }
 

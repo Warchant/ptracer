@@ -27,7 +27,6 @@ Please report bugs to rogero@howzatt.demon.co.uk.
 #include <exception>  // for std::runtime_exception
 #include <ntstatus.h> // for STATUS_WX86_BREAKPOINT
 
-
 using CString = std::basic_string<TCHAR>;
 
 #ifdef _UNICODE
@@ -132,15 +131,14 @@ void ProcessTracer::OnCreateProcess(
 
   auto processAddress =
       m_engine.addressToString((void *)createProcess.lpStartAddress);
-  GetProcessInformation(processId, processAddress, this->m_isVerbose);
+  GetProcessInformation(processId, processAddress);
   pids.push_back(processId);
   if (m_isVerbose)
     GetApplicationPath();
 
   std::string currentPath = GetCurrentDirectory();
   std::string args = GetCommandLineArgs(m_hProcess);
-  Process newProcess(std::stoi(GetPID()), std::stoi(GetParentPID()), args,
-                     currentPath);
+  Process newProcess(this->process_pid, this->parent_pid, args, currentPath);
   if (root.GetChildren().size() == 0) {
     root.InsertChild(newProcess);
   }
@@ -167,85 +165,71 @@ void ProcessTracer::GetApplicationPath() {
  https://stackoverflow.com/questions/7446887/get-command-line-string-of-64-bit-process-from-32-bit-process
 */
 std::string ProcessTracer::GetCommandLineArgs(HANDLE handle) {
-  DWORD err = 0;
   SYSTEM_INFO system_info;
   GetNativeSystemInfo(&system_info);
-  DWORD ProcessParametersOffset =
-      system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? 0x20
-                                                                         : 0x10;
-  DWORD CommandLineOffset =
-      system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? 0x70
-                                                                         : 0x40;
-  // read basic info to get ProcessParameters address, we only need the
-  // beginning of PEB
-  DWORD pebSize = ProcessParametersOffset + 8;
-  std::unique_ptr<BYTE> peb = std::unique_ptr<BYTE>(new BYTE[pebSize]);
-  DWORD ppSize = CommandLineOffset + 16;
-  std::unique_ptr<BYTE> pp = std::unique_ptr<BYTE>(new BYTE[ppSize]);
-  // PWSTR cmdLine;
+
   PROCESS_BASIC_INFORMATION pbi{};
+
+  size_t nRead = 0;
   // get process information
   auto query = (_NtQueryInformationProcess)GetProcAddress(
       GetModuleHandleA("ntdll.dll"), "NtQueryInformationProcess");
-  err = query(handle, 0, &pbi, sizeof(pbi), NULL);
+  DWORD err = query(handle, 0, &pbi, sizeof(pbi), NULL);
   if (err != 0) {
-    CloseHandle(handle);
-    return {};
-  }
-  // read PEB
-  if (!ReadProcessMemory(handle, pbi.PebBaseAddress, peb.get(), pebSize,
-                         NULL)) {
-    CloseHandle(handle);
-    return {};
-  }
-  // read ProcessParameters
-  auto parameters = (PBYTE *)*(
-      LPVOID
-          *)(peb.get() +
-             ProcessParametersOffset); // address in remote process adress space
-  if (!ReadProcessMemory(handle, parameters, pp.get(), ppSize, NULL)) {
-    CloseHandle(handle);
-    return {};
-  }
-  auto pCommandLine = (UNICODE_STRING *)(pp.get() + CommandLineOffset);
-  std::vector<wchar_t> cmdLine(pCommandLine->MaximumLength, '\0');
-  // cmdLine = (PWSTR) new char[pCommandLine->MaximumLength];
-  if (!ReadProcessMemory(handle, pCommandLine->Buffer, cmdLine.data(),
-                         pCommandLine->MaximumLength, NULL)) {
-    CloseHandle(handle);
-    return {};
+    throw std::runtime_error("Cannot query ntdll.dll");
   }
 
-  std::wstring w = cmdLine.data();
-  if (this->m_isVerbose) {
-    std::wcout << "::::::::::::::::::: " << w << std::endl;
+  // read PEB
+  PEB peb;
+  if (!ReadProcessMemory(handle, pbi.PebBaseAddress, &peb, sizeof(peb),
+                         &nRead)) {
+    throw std::runtime_error("Cannot read peb");
   }
-  return ToString(w);
+
+  // read ProcessParameters
+  RTL_USER_PROCESS_PARAMETERS upp;
+  if (!ReadProcessMemory(handle, peb.ProcessParameters, &upp, sizeof(upp),
+                         &nRead)) {
+    throw std::runtime_error("Cannot read upp");
+  }
+
+  // read command line
+  auto pCommandLine = &upp.CommandLine;
+  std::vector<wchar_t> cmdLine(pCommandLine->MaximumLength, '\0');
+  if (!ReadProcessMemory(handle, pCommandLine->Buffer, cmdLine.data(),
+                         pCommandLine->MaximumLength, NULL)) {
+    throw std::runtime_error("Cannot read command line");
+  }
+
+
+  // read env vars
+  return ToString(cmdLine.data());
 }
+
 /*
  * Takes current process snapshot  via Windows Tool Help Library
  */
 void ProcessTracer::GetProcessInformation(DWORD processId,
-                                          std::string processAddress,
-                                          bool isEnabled) {
-  HANDLE hProcessSnap;
-  PROCESSENTRY32 pe32;
-  hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+                                          std::string processAddress) {
+  HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (hProcessSnap == INVALID_HANDLE_VALUE) {
-    std::cout << "Error\n";
+    throw std::runtime_error("CreateToolhelp32Snapshot failed");
   }
+
+  PROCESSENTRY32 pe32;
   pe32.dwSize = sizeof(PROCESSENTRY32);
 
   if (!Process32First(hProcessSnap, &pe32)) {
     CloseHandle(hProcessSnap);
+    throw std::runtime_error("Process32First failed");
   }
 
   while (Process32Next(hProcessSnap, &pe32)) {
     if (pe32.th32ProcessID == processId) {
-      SetParentPID(std::to_string(pe32.th32ParentProcessID));
-      parent.push_back(std::stoi(GetParentPID()));
-      SetPID(std::to_string(pe32.th32ProcessID));
-      if (isEnabled) {
+      this->parent_pid = pe32.th32ParentProcessID;
+      parent.push_back(this->parent_pid);
+      this->process_pid = pe32.th32ProcessID;
+      if (this->m_isVerbose) {
         std::wcout << "Process ID      : " << pe32.th32ProcessID << "\n";
         std::wcout << "Process name    : " << pe32.szExeFile << "\n";
         std::wcout << "Thread counts   : " << pe32.cntThreads << "\n";
@@ -253,6 +237,7 @@ void ProcessTracer::GetProcessInformation(DWORD processId,
       }
     }
   }
+
   CloseHandle(hProcessSnap);
 }
 

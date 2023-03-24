@@ -23,10 +23,8 @@ SOFTWARE.
 */
 
 #pragma once
-#include <iostream>
 #include <vector>
 #include <string>
-#include <sstream>
 #include "json.hpp"
 
 class Process
@@ -40,11 +38,10 @@ private:
 	std::vector<Process> children;
 public:
 	Process() = default;
-	~Process() = default;
 	Process(const int&, const int&,const std::string&, const std::string&);
 	void InsertChild(Process);
 	void TraverseAndInsertChild(Process&);
-	nlohmann::json GetJSON() const;
+	nlohmann::json GetJSON();
 	Process& GetLastChild() { return this->children.back(); }
 	std::vector<Process>& GetChildren() { return  this->children; }
 };

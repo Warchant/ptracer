@@ -10,7 +10,6 @@ HEADERS=\
 	json.hpp \
 	Process.h \
 	ProcessTracer.h \
-	resource.h \
 	SimpleSymbolEngine.h \
 	argparse.h
 

@@ -3,7 +3,7 @@ CXX=g++
 
 LDLIBS=-static -limagehlp -static-libgcc -static-libstdc++
 CFLAGS=
-CXXFLAGS=-std=c++17 -O3
+CXXFLAGS=-std=c++20 -O3 -m64
 
 HEADERS=\
 	NtQueries.h \

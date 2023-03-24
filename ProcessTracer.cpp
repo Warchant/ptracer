@@ -24,8 +24,10 @@ Please report bugs to rogero@howzatt.demon.co.uk.
 
 #include "ProcessTracer.h"
 
+#include <cassert>    // for assert
 #include <exception>  // for std::runtime_exception
 #include <ntstatus.h> // for STATUS_WX86_BREAKPOINT
+
 
 using CString = std::basic_string<TCHAR>;
 
@@ -52,11 +54,11 @@ ProcessTracer::ProcessTracer(int argc, TCHAR **argv) {
  * Essential logic process creation is from @RogerOrr
  */
 
-void ProcessTracer::Run(bool isVerbose) {
+void ProcessTracer::Run() {
   bool attached = false;
-  m_isVerbose = isVerbose;
 
   do {
+    try{
     DEBUG_EVENT DebugEvent;
     DWORD continueFlag = DBG_CONTINUE;
     if (!WaitForDebugEvent(&DebugEvent, INFINITE)) {
@@ -77,30 +79,37 @@ void ProcessTracer::Run(bool isVerbose) {
       } else if (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode ==
                      STATUS_WX86_BREAKPOINT &&
                  m_isVerbose) {
-        std::cout << "WOW64 initialised"
-                  << "\n";
+        // std::cout << "WOW64 initialised"
+        //           << "\n";
       } else {
         continueFlag = (DWORD)DBG_EXCEPTION_NOT_HANDLED;
       }
       break;
     default:
-      if (m_isVerbose) {
-        std::cerr << "Undefined debug event: " << DebugEvent.dwDebugEventCode
-                  << "\n";
-      }
+      // do nothing
+      break;
+      // if (m_isVerbose) {
+      //   std::cerr << "Undefined debug event: " << DebugEvent.dwDebugEventCode
+      //             << "\n";
+      // }
     }
     if (!ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId,
                             continueFlag)) {
       throw std::runtime_error("Error continuing debug event");
     }
-  } while (!m_IsInitRunning);
 
-  WriteToJSON();
+    }
+    catch(const std::exception& e) {
+      std::cerr << "[TRACER] ERROR: " << e.what() << " ... continuing\n";
+      continue;
+    }
+  } while (!m_IsInitRunning);
 }
 
-void ProcessTracer::WriteToJSON() {
+void ProcessTracer::WriteToJSON(std::string outputPath) {
+  std::ofstream f(outputPath);
   auto r = root.GetJSON();
-  output_file << r.dump(2);
+  f << r.dump(2);
 }
 
 /*
@@ -185,6 +194,7 @@ std::string ProcessTracer::GetCommandLineArgs(HANDLE handle) {
                          &nRead)) {
     throw std::runtime_error("Cannot read peb");
   }
+  assert(nRead == sizeof(peb));
 
   // read ProcessParameters
   RTL_USER_PROCESS_PARAMETERS upp;
@@ -192,17 +202,18 @@ std::string ProcessTracer::GetCommandLineArgs(HANDLE handle) {
                          &nRead)) {
     throw std::runtime_error("Cannot read upp");
   }
+  assert(nRead == sizeof(upp));
 
   // read command line
   auto pCommandLine = &upp.CommandLine;
   std::vector<wchar_t> cmdLine(pCommandLine->MaximumLength, '\0');
   if (!ReadProcessMemory(handle, pCommandLine->Buffer, cmdLine.data(),
-                         pCommandLine->MaximumLength, NULL)) {
+                         pCommandLine->MaximumLength, &nRead)) {
     throw std::runtime_error("Cannot read command line");
   }
 
+  // TODO(Bohdan): read env vars also
 
-  // read env vars
   return ToString(cmdLine.data());
 }
 
@@ -220,7 +231,6 @@ void ProcessTracer::GetProcessInformation(DWORD processId,
   pe32.dwSize = sizeof(PROCESSENTRY32);
 
   if (!Process32First(hProcessSnap, &pe32)) {
-    CloseHandle(hProcessSnap);
     throw std::runtime_error("Process32First failed");
   }
 
@@ -252,9 +262,6 @@ void ProcessTracer::OnExitProcess(DWORD processId,
   if (pids.front() == processId) {
     m_IsInitRunning = true;
   }
-  if (m_isVerbose)
-    std::cout << "\nPID " << processId << " EXIT CODE "
-              << exitProcess.dwExitCode << "\n";
 }
 
 /*
@@ -283,8 +290,6 @@ void ProcessTracer::PTraceCreateProcess(int argc, TCHAR **begin) {
     }
   }
 
-  std::string cliArgs = GetArgs();
-  ParseArgs(cliArgs);
   STARTUPINFO startupInfo = {sizeof(startupInfo)};
   startupInfo.dwFlags = STARTF_USESHOWWINDOW;
   startupInfo.wShowWindow = SW_SHOWNORMAL;
@@ -310,40 +315,22 @@ void ProcessTracer::PTraceCreateProcess(int argc, TCHAR **begin) {
   CloseHandle(ProcessInformation.hThread);
 }
 
-/*
- * Windows specific data type conversion
- * This case WChar to std::string
- */
-std::string ProcessTracer::GetArgs() {
-  LPWSTR *arguments;
-  int numberArgs;
-  std::string cliArgs;
-  arguments = CommandLineToArgvW(GetCommandLineW(), &numberArgs);
-  if (NULL == arguments) {
-    throw std::runtime_error("CommandLineToArgvW failed");
-  }
+// /*
+//  * Windows specific data type conversion
+//  * This case WChar to std::string
+//  */
+// std::string ProcessTracer::GetArgs() {
+//   LPWSTR *arguments;
+//   int numberArgs;
+//   std::string cliArgs;
+//   arguments = CommandLineToArgvW(GetCommandLineW(), &numberArgs);
+//   if (NULL == arguments) {
+//     throw std::runtime_error("CommandLineToArgvW failed");
+//   }
 
-  for (int i = 1; i < numberArgs; i++) {
-    std::wstring w(arguments[i]);
-    cliArgs += ToString(w);
-  }
-  return cliArgs;
-}
-
-/*
- * Basic command line arguments parsing
- */
-void ProcessTracer::ParseArgs(std::string cliArgs) {
-  if (cliArgs == "--help" || cliArgs == "-h") {
-    std::cout << "PTracer is a command line application which observes any "
-                 "applications processes on Windows 10.\n";
-    std::cout << "PTracer observe a process and its child process\n";
-    std::cout << "\n";
-    std::cout << "Options\n\n";
-    std::cout << "--help, -h      			 help and options\n";
-    std::cout << "Usage:\n";
-    std::cout << "PTrace [application] \n";
-    std::cout << "\n";
-    exit(1);
-  }
-}
+//   for (int i = 1; i < numberArgs; i++) {
+//     std::wstring w(arguments[i]);
+//     cliArgs += ToString(w);
+//   }
+//   return cliArgs;
+// }

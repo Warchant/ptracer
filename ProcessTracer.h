@@ -31,7 +31,7 @@
 
 
 
-#define BUFSIZE 4096
+// #define BUFSIZE 4096
 
 
 class ProcessTracer
@@ -39,7 +39,7 @@ class ProcessTracer
 private:
 	HANDLE m_hProcess;
 	DWORD m_parent;
-	bool m_isVerbose = true;
+	bool m_isVerbose = false;
 	bool m_isEnabledInfo = false;
 	bool m_isExecuting = true;
 	bool m_IsInitRunning = false;
@@ -57,18 +57,15 @@ public:
 	ProcessTracer();
 	~ProcessTracer() = default;
 	ProcessTracer(int argc, TCHAR **argv);
-	void Run(bool isDllEnabled);
-	void WriteToJSON();
+	void Run();
+	void WriteToJSON(std::string outputPath);
 	void OnCreateProcess(DWORD processId, DWORD threadId, CREATE_PROCESS_DEBUG_INFO const & createProcess);
 	void GetApplicationPath();
 	void OnExitProcess(DWORD threadId, EXIT_PROCESS_DEBUG_INFO const & exitProcess, bool m_isVerbose);
 	void PTraceCreateProcess(int argc, TCHAR ** begin);
 	void OnException(DWORD threadId, DWORD firstChance, EXCEPTION_RECORD const& exception);
 	void GetProcessInformation(DWORD pid,std::string processAddress);
-	void ParseArgs(std::string str);
 	std::string GetCommandLineArgs(HANDLE handle);
-	std::string GetArgs();
 	std::string ToString(std::wstring wstr){ return strconverter.to_bytes(wstr);}
 	std::string (GetCurrentDirectory)();
-	std::ofstream output_file{ "compile_db.json" };
 };

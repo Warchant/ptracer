@@ -26,20 +26,21 @@ SOFTWARE.
 #include <memory>
 
 int _tmain(int argc, TCHAR **argv) {
-
   if (argc <= 1) {
     std::cout << "See options via -h or --help\n";
     return 1;
   }
 
+  const std::string output = "compile_db.json";
+  auto handler = std::make_unique<ProcessTracer>(argc, argv);
   try {
-    std::unique_ptr<ProcessTracer> handler =
-        std::unique_ptr<ProcessTracer>(new ProcessTracer(argc, argv));
-    handler->Run(false);
+    handler->Run();
   } catch (const std::exception &e) {
     std::cerr << ("EXCEPTION: \n") << e.what();
-    return 1;
   }
+
+  std::cout << "[TRACER] Success! Writing to json file: " << output << "\n";
+  handler->WriteToJSON(output);
 
   return 0;
 }

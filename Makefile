@@ -11,7 +11,8 @@ HEADERS=\
 	Process.h \
 	ProcessTracer.h \
 	resource.h \
-	SimpleSymbolEngine.h
+	SimpleSymbolEngine.h \
+	argparse.h
 
 SOURCES=\
 	main.cpp \
@@ -36,6 +37,6 @@ test: tracer.exe
 	@echo "TESTING"
 	powershell -Command Copy-Item -Path tracer.exe -Destination t.exe
 	make clean
-	./t.exe "make"
+	./t.exe -c "make"
 
 -include $(D)

@@ -24,15 +24,44 @@ SOFTWARE.
 
 #include "ProcessTracer.h"
 #include <memory>
+#include "argparse.hpp"
 
-int _tmain(int argc, TCHAR **argv) {
-  if (argc <= 1) {
-    std::cout << "See options via -h or --help\n";
+using namespace argparse;
+
+int main(int argc, const char**argv) {
+  ArgumentParser parser("tracer", "Trace subprocess cration to produce compile database json file");
+  parser.add_argument()
+      .names({"-c", "--cmd"})
+      .description("command to run")
+      .required(true);
+
+  parser.add_argument()
+      .names({"-o", "--outut"})
+      .description("path to output file")
+      .required(false);
+
+  parser.enable_help();
+  auto err = parser.parse(argc, argv);
+  if (err) {
+    std::cout << err << std::endl;
     return 1;
   }
+  if (parser.exists("help")) {
+    parser.print_help();
+    return 0;
+  }
 
-  const std::string output = "compile_db.json";
-  auto handler = std::make_unique<ProcessTracer>(argc, argv);
+  std::string output = "compile_db.json";
+  if(parser.exists("o")) {
+    output = parser.get<std::string>("o");
+  }
+
+  std::string cmd;
+  if(parser.exists("c")) {
+    cmd = parser.get<std::string>("c");
+  }
+
+  auto handler = std::make_unique<ProcessTracer>(cmd);
   try {
     handler->Run();
   } catch (const std::exception &e) {

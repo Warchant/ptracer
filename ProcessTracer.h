@@ -54,15 +54,14 @@ private:
 	Process root; // root process
 
 public:
-	ProcessTracer();
 	~ProcessTracer() = default;
-	ProcessTracer(int argc, TCHAR **argv);
+	ProcessTracer(std::string cmd);
 	void Run();
 	void WriteToJSON(std::string outputPath);
 	void OnCreateProcess(DWORD processId, DWORD threadId, CREATE_PROCESS_DEBUG_INFO const & createProcess);
 	void GetApplicationPath();
 	void OnExitProcess(DWORD threadId, EXIT_PROCESS_DEBUG_INFO const & exitProcess, bool m_isVerbose);
-	void PTraceCreateProcess(int argc, TCHAR ** begin);
+	void PTraceCreateProcess(std::string cmd);
 	void OnException(DWORD threadId, DWORD firstChance, EXCEPTION_RECORD const& exception);
 	void GetProcessInformation(DWORD pid,std::string processAddress);
 	std::string GetCommandLineArgs(HANDLE handle);

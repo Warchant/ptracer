@@ -28,7 +28,6 @@ Please report bugs to rogero@howzatt.demon.co.uk.
 #include <exception>  // for std::runtime_exception
 #include <ntstatus.h> // for STATUS_WX86_BREAKPOINT
 
-
 using CString = std::basic_string<TCHAR>;
 
 #ifdef _UNICODE
@@ -40,11 +39,9 @@ using CString = std::basic_string<TCHAR>;
 #endif
 #define SIZE (10)
 
-ProcessTracer::ProcessTracer() { _putenv("_NO_DEBUG_HEAP=1"); }
-
-ProcessTracer::ProcessTracer(int argc, TCHAR **argv) {
+ProcessTracer::ProcessTracer(std::string cmd) {
   _putenv("_NO_DEBUG_HEAP=1");
-  this->PTraceCreateProcess(argc, argv);
+  this->PTraceCreateProcess(cmd);
 }
 
 /*
@@ -58,48 +55,48 @@ void ProcessTracer::Run() {
   bool attached = false;
 
   do {
-    try{
-    DEBUG_EVENT DebugEvent;
-    DWORD continueFlag = DBG_CONTINUE;
-    if (!WaitForDebugEvent(&DebugEvent, INFINITE)) {
-      throw std::runtime_error("Debug loop aborted");
-    }
-    switch (DebugEvent.dwDebugEventCode) {
-    case CREATE_PROCESS_DEBUG_EVENT:
-      OnCreateProcess(DebugEvent.dwProcessId, DebugEvent.dwThreadId,
-                      DebugEvent.u.CreateProcessInfo);
-      break;
-    case EXIT_PROCESS_DEBUG_EVENT:
-      OnExitProcess(DebugEvent.dwProcessId, DebugEvent.u.ExitProcess,
-                    m_isVerbose);
-      break;
-    case EXCEPTION_DEBUG_EVENT:
-      if (!attached) {
-        attached = true;
-      } else if (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode ==
-                     STATUS_WX86_BREAKPOINT &&
-                 m_isVerbose) {
-        // std::cout << "WOW64 initialised"
-        //           << "\n";
-      } else {
-        continueFlag = (DWORD)DBG_EXCEPTION_NOT_HANDLED;
+    try {
+      DEBUG_EVENT DebugEvent;
+      DWORD continueFlag = DBG_CONTINUE;
+      if (!WaitForDebugEvent(&DebugEvent, INFINITE)) {
+        throw std::runtime_error("Debug loop aborted");
       }
-      break;
-    default:
-      // do nothing
-      break;
-      // if (m_isVerbose) {
-      //   std::cerr << "Undefined debug event: " << DebugEvent.dwDebugEventCode
-      //             << "\n";
-      // }
-    }
-    if (!ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId,
-                            continueFlag)) {
-      throw std::runtime_error("Error continuing debug event");
-    }
+      switch (DebugEvent.dwDebugEventCode) {
+      case CREATE_PROCESS_DEBUG_EVENT:
+        OnCreateProcess(DebugEvent.dwProcessId, DebugEvent.dwThreadId,
+                        DebugEvent.u.CreateProcessInfo);
+        break;
+      case EXIT_PROCESS_DEBUG_EVENT:
+        OnExitProcess(DebugEvent.dwProcessId, DebugEvent.u.ExitProcess,
+                      m_isVerbose);
+        break;
+      case EXCEPTION_DEBUG_EVENT:
+        if (!attached) {
+          attached = true;
+        } else if (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode ==
+                       STATUS_WX86_BREAKPOINT &&
+                   m_isVerbose) {
+          // std::cout << "WOW64 initialised"
+          //           << "\n";
+        } else {
+          continueFlag = (DWORD)DBG_EXCEPTION_NOT_HANDLED;
+        }
+        break;
+      default:
+        // do nothing
+        break;
+        // if (m_isVerbose) {
+        //   std::cerr << "Undefined debug event: " <<
+        //   DebugEvent.dwDebugEventCode
+        //             << "\n";
+        // }
+      }
+      if (!ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId,
+                              continueFlag)) {
+        throw std::runtime_error("Error continuing debug event");
+      }
 
-    }
-    catch(const std::exception& e) {
+    } catch (const std::exception &e) {
       std::cerr << "[TRACER] ERROR: " << e.what() << " ... continuing\n";
       continue;
     }
@@ -270,32 +267,14 @@ void ProcessTracer::OnExitProcess(DWORD processId,
  * By changing DEBUG_PROCESS, other option for Debug API could be used as needed
  * Modified function from @RogerOrr
  */
-void ProcessTracer::PTraceCreateProcess(int argc, TCHAR **begin) {
-
-  ++begin;
-  --argc;
-  TCHAR **end = begin + argc;
-  CString cmdLine;
-
-  for (TCHAR **it = begin; it != end; ++it) {
-    if (!cmdLine.empty())
-      cmdLine += ' ';
-
-    if (_tcschr(*it, ' ')) {
-      cmdLine += '"';
-      cmdLine += *it;
-      cmdLine += '"';
-    } else {
-      cmdLine += *it;
-    }
-  }
+void ProcessTracer::PTraceCreateProcess(std::string cmd) {
 
   STARTUPINFO startupInfo = {sizeof(startupInfo)};
   startupInfo.dwFlags = STARTF_USESHOWWINDOW;
   startupInfo.wShowWindow = SW_SHOWNORMAL;
   PROCESS_INFORMATION ProcessInformation = {0};
 
-  if (!CreateProcess(0, const_cast<TCHAR *>(cmdLine.data()), 0, 0, true,
+  if (!CreateProcess(0, const_cast<TCHAR *>(cmd.data()), 0, 0, true,
                      DEBUG_PROCESS, 0, 0, &startupInfo, &ProcessInformation)) {
     std::ostringstream oss;
     oss << GetLastError();
@@ -307,7 +286,7 @@ void ProcessTracer::PTraceCreateProcess(int argc, TCHAR **begin) {
                              str + ": " + oss.str());
     delete str;
 #else
-    throw std::runtime_error(std::string("Unable to start ") + *begin + ": " +
+    throw std::runtime_error(std::string("Unable to start ") + cmd + ": " +
                              oss.str());
 #endif
   }
